@@ -1,0 +1,9 @@
+{
+  "name": "Copy of Advice-Style E-Commerce",
+  "description": "A comprehensive e-commerce platform featuring an Advice.co.th inspired UI, admin dashboard with quarterly revenue analytics, product management, and automated PromptPay QR payment verification.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
