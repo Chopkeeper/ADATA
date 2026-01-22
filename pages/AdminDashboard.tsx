@@ -242,8 +242,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, products, taxRa
   }
 
   // Common Card Component
-  const DashboardCard = ({ children, title, className = "" }: { children?: React.ReactNode, title?: string, className?: string }) => (
-    <div className={`rounded-xl p-5 shadow-lg relative flex flex-col ${className}`} style={{ backgroundColor: THEME.card }}>
+  const DashboardCard = ({ children, title, className = "", id }: { children?: React.ReactNode, title?: string, className?: string, id?: string }) => (
+    <div id={id} className={`rounded-xl p-5 shadow-lg relative flex flex-col ${className}`} style={{ backgroundColor: THEME.card }}>
        {title && <h3 className="text-gray-400 text-sm font-light mb-4 flex items-center gap-2">{title}</h3>}
        {children}
     </div>
@@ -488,10 +488,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, products, taxRa
                       ))}
                    </div>
                    <div className="mt-auto pt-4 grid grid-cols-2 gap-3">
-                       <div className="bg-[#1d8cf8] h-16 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/40 cursor-pointer hover:scale-105 transition-transform">
+                       <div 
+                         onClick={() => setActiveTab('orders')}
+                         title="Go to Order Management"
+                         className="bg-[#1d8cf8] h-16 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/40 cursor-pointer hover:scale-105 transition-transform"
+                       >
                           <CheckCircle2 size={24} />
                        </div>
-                       <div className="bg-[#2b2d42] h-16 rounded-xl flex items-center justify-center text-white border border-white/10 hover:bg-[#343650] transition-colors cursor-pointer">
+                       <div 
+                         onClick={() => document.getElementById('system-config')?.scrollIntoView({ behavior: 'smooth' })}
+                         title="Go to Settings"
+                         className="bg-[#2b2d42] h-16 rounded-xl flex items-center justify-center text-white border border-white/10 hover:bg-[#343650] transition-colors cursor-pointer"
+                       >
                           <Settings size={24} />
                        </div>
                    </div>
@@ -510,7 +518,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, products, taxRa
                    </div>
                 </DashboardCard>
 
-                <DashboardCard title="System Config" className="lg:col-span-3 border border-[#1d8cf8]/30">
+                <DashboardCard title="System Config" id="system-config" className="lg:col-span-3 border border-[#1d8cf8]/30">
                      <div className="flex flex-col md:flex-row items-center gap-4">
                          <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex-1 w-full">
                             <h4 className="text-sm font-bold text-white mb-1">VAT Rate</h4>
