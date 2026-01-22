@@ -59,13 +59,14 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ products, onAddProduct, o
     // If no images provided, use the default placeholder
     const primaryImage = imagesArray.length > 0 ? imagesArray[0] : (formData.image || 'https://picsum.photos/300/300');
 
+    // ID is ignored by backend
     const newProduct: Product = {
-      id: Date.now().toString(),
+      id: '', 
       name: formData.name,
       category: formData.category || 'General',
       price: formData.price,
       shippingCost: formData.shippingCost || 0,
-      discountPercent: 0, // Default to 0 for new products
+      discountPercent: 0,
       description: formData.description || '',
       image: primaryImage,
       images: imagesArray.length > 0 ? imagesArray : [primaryImage],
@@ -80,7 +81,6 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ products, onAddProduct, o
       imagesInput: '',
       stock: 10
     });
-    alert("Product added successfully!");
   };
 
   const handleUpdateDiscount = (e: React.FormEvent) => {

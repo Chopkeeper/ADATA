@@ -7,51 +7,65 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import Checkout from './pages/Checkout';
 import { Product, User, CartItem, Order } from './types';
-import { INITIAL_PRODUCTS, MOCK_ORDERS } from './services/mockData';
-
-// Mock Auth Service for simplicity in one file
-const mockUser: User = {
-  id: 'u1',
-  name: 'John Doe',
-  email: 'john@example.com',
-  role: 'user',
-  isAuthenticated: true
-};
-
-const mockAdmin: User = {
-  id: 'a1',
-  name: 'Admin Manager',
-  email: 'admin@advice-clone.com',
-  role: 'admin',
-  isAuthenticated: true
-};
+import { api } from './services/api';
 
 // Login Component
-const LoginForm: React.FC<{ onLogin: (u: string, p: string, isAdmin: boolean) => void }> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+const LoginForm: React.FC<{ onLogin: (u: string, p: string, isAdmin: boolean) => Promise<void> }> = ({ onLogin }) => {
+  const [username, setUsername] = useState(''); // Treating as email
   const [password, setPassword] = useState('');
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [name, setName] = useState(''); // For register
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(username, password, isAdminMode);
+    setError('');
+    setLoading(true);
+    try {
+        if (isRegistering) {
+            await api.register(name, username, password);
+            alert("Registration successful! Please login.");
+            setIsRegistering(false);
+        } else {
+            // Check for admin legacy hardcode bypass or normal login
+            await onLogin(username, password, false);
+        }
+    } catch (err) {
+        setError("Operation failed. Please check credentials.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
     <div className="flex flex-col items-center justify-center h-[80vh]">
        <div className="bg-white/95 backdrop-blur-sm p-8 rounded shadow-lg w-96">
           <h2 className="text-2xl font-bold mb-6 text-center text-advice-blue">
-            {isAdminMode ? 'Admin System' : 'Member Login'}
+            {isRegistering ? 'Register Member' : 'System Login'}
           </h2>
+          {error && <div className="bg-red-100 text-red-600 p-2 mb-4 rounded text-sm text-center">{error}</div>}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegistering && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full border p-2 rounded focus:ring-2 ring-advice-blue outline-none"
+                    required 
+                  />
+                </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Username</label>
+              <label className="block text-sm font-medium text-gray-700">Email / Username</label>
               <input 
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full border p-2 rounded focus:ring-2 ring-advice-blue outline-none"
-                placeholder={isAdminMode ? "admin" : "Username"}
                 required 
               />
             </div>
@@ -62,25 +76,25 @@ const LoginForm: React.FC<{ onLogin: (u: string, p: string, isAdmin: boolean) =>
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full border p-2 rounded focus:ring-2 ring-advice-blue outline-none"
-                placeholder={isAdminMode ? "Password" : "Password"}
                 required 
               />
             </div>
             <button 
               type="submit" 
-              className={`w-full text-white py-2 rounded font-bold transition ${isAdminMode ? 'bg-gray-800 hover:bg-black' : 'bg-advice-blue hover:bg-blue-700'}`}
+              disabled={loading}
+              className={`w-full text-white py-2 rounded font-bold transition bg-advice-blue hover:bg-blue-700 ${loading ? 'opacity-50' : ''}`}
             >
-              {isAdminMode ? 'Login to Dashboard' : 'Login'}
+              {loading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Login')}
             </button>
           </form>
           
           <div className="mt-6 text-center pt-4 border-t border-gray-100">
              <button 
                type="button"
-               onClick={() => { setIsAdminMode(!isAdminMode); setUsername(''); setPassword(''); }}
+               onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
                className="text-xs text-gray-500 underline hover:text-advice-blue"
              >
-               Switch to {isAdminMode ? 'User' : 'Admin'} Login
+               {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
              </button>
           </div>
        </div>
@@ -90,37 +104,66 @@ const LoginForm: React.FC<{ onLogin: (u: string, p: string, isAdmin: boolean) =>
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const [taxRate, setTaxRate] = useState<number>(7); // Default VAT 7%
-  
-  // State for category filtering (Lifted up from Home)
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [taxRate, setTaxRate] = useState<number>(7);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [loading, setLoading] = useState(true);
 
-  // Load from local storage if available (omitted for brevity, using state)
+  // Initialize App
+  useEffect(() => {
+    const init = async () => {
+        try {
+            // Fetch Products
+            const prodData = await api.getProducts();
+            setProducts(prodData);
 
-  const handleLoginCheck = (u: string, p: string, isAdmin: boolean) => {
-    if (isAdmin) {
-      // STRICT CHECK for Admin
-      if (u === 'admin' && p === 'Chopkeeper') {
-        setUser(mockAdmin);
+            // Check Auth
+            if (localStorage.getItem('token')) {
+                const userData = await api.getCurrentUser();
+                setUser(userData);
+                
+                // Fetch Orders if user is logged in
+                const orderData = await api.getOrders();
+                setOrders(orderData);
+            }
+        } catch (e) {
+            console.error("Initialization error:", e);
+            // Don't clear token immediately on product fetch fail, but maybe on auth fail
+        } finally {
+            setLoading(false);
+        }
+    };
+    init();
+  }, []);
+
+  // Fetch orders whenever user changes (login)
+  useEffect(() => {
+    if (user) {
+        api.getOrders().then(setOrders).catch(console.error);
+    }
+  }, [user]);
+
+  const handleLogin = async (u: string, p: string, isAdmin: boolean) => {
+    // Note: isAdmin param is largely ignored here as API decides role
+    const data = await api.login(u, p);
+    localStorage.setItem('token', data.token);
+    setUser({ ...data.user, isAuthenticated: true });
+    
+    // Redirect logic
+    if (data.user.role === 'admin') {
         window.location.hash = '/admin/dashboard';
-      } else {
-        alert("Access Denied: Invalid Admin Credentials.");
-      }
     } else {
-      // Simulation for User (Any input works for demo)
-      if (u.trim() !== "") {
-         setUser({ ...mockUser, name: u });
-         window.location.hash = '/';
-      }
+        window.location.hash = '/';
     }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     setUser(null);
     setCart([]);
+    setOrders([]);
     window.location.hash = '/';
   };
 
@@ -140,41 +183,65 @@ const App: React.FC = () => {
     });
   };
 
-  const handlePlaceOrder = (items: CartItem[], total: number, breakdown: any) => {
+  const handlePlaceOrder = async (items: CartItem[], total: number, breakdown: any) => {
     if (!user) return;
-    const newOrder: Order = {
-      id: `ORD-${Date.now()}`,
-      userId: user.id,
-      items,
-      subtotal: breakdown.subtotal,
-      shippingTotal: breakdown.shipping,
-      taxAmount: breakdown.tax,
-      discountTotal: breakdown.discount,
-      totalAmount: total,
-      appliedCoupons: breakdown.appliedCoupons,
-      status: 'verified',
-      paymentMethod: 'promptpay',
-      timestamp: Date.now()
-    };
-    setOrders(prev => [...prev, newOrder]);
+    try {
+        const orderPayload: Partial<Order> = {
+            items: items.map(i => ({
+                ...i,
+                productId: i.id,
+            })),
+            subtotal: breakdown.subtotal,
+            shippingTotal: breakdown.shipping,
+            taxAmount: breakdown.tax,
+            discountTotal: breakdown.discount,
+            totalAmount: total,
+            appliedCoupons: breakdown.appliedCoupons,
+            status: 'verified',
+            paymentMethod: 'promptpay'
+        };
+
+        const newOrder = await api.createOrder(orderPayload);
+        setOrders(prev => [newOrder, ...prev]);
+        return newOrder;
+    } catch (e) {
+        console.error("Failed to place order", e);
+        alert("Failed to place order. Please try again.");
+    }
   };
 
-  const handleAddProduct = (newProduct: Product) => {
-     setProducts(prev => [...prev, newProduct]);
+  const handleAddProduct = async (newProduct: Product) => {
+     try {
+         // Exclude ID so DB generates it
+         const { id, ...prodData } = newProduct; 
+         const saved = await api.addProduct(prodData);
+         setProducts(prev => [...prev, saved]);
+     } catch (e) {
+         alert("Failed to add product");
+     }
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
-     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  const handleUpdateProduct = async (updatedProduct: Product) => {
+     try {
+         const saved = await api.updateProduct(updatedProduct);
+         setProducts(prev => prev.map(p => p.id === saved.id ? saved : p));
+     } catch (e) {
+         alert("Failed to update product");
+     }
   };
 
-  const handleDeleteProduct = (id: string) => {
-     setProducts(prev => prev.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+     if(!window.confirm("Are you sure?")) return;
+     try {
+         await api.deleteProduct(id);
+         setProducts(prev => prev.filter(p => p.id !== id));
+     } catch (e) {
+         alert("Failed to delete product");
+     }
   };
 
-  // Handler for category selection from Navbar or Home
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
-    // If not on home page, go to home page
     if (window.location.hash !== '#/') {
        window.location.hash = '/';
     }
@@ -182,20 +249,17 @@ const App: React.FC = () => {
 
   const handleNavigate = (path: string) => {
     window.location.hash = path;
-    if (path === '/') {
-        setSelectedCategory('All'); // Reset filter when clicking Logo
-    }
+    if (path === '/') setSelectedCategory('All');
   };
+
+  if (loading) return <div className="flex h-screen items-center justify-center">Loading IT Shop...</div>;
 
   return (
     <Router>
       <div 
         className="min-h-screen flex flex-col font-sans bg-cover bg-center bg-fixed bg-no-repeat"
         style={{
-          // คุณสามารถเปลี่ยน URL ตรงนี้เป็นลิ้งค์รูปภาพที่คุณต้องการ
           backgroundImage: "url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop')",
-          // หรือใช้เป็น linear-gradient ก็ได้ เช่น:
-          // backgroundImage: "linear-gradient(to bottom right, #e0e7ff, #f3f4f6)" 
         }}
       >
         <Navbar 
@@ -261,17 +325,12 @@ const App: React.FC = () => {
             } />
 
             <Route path="/login" element={
-              <LoginForm onLogin={handleLoginCheck} />
+              <LoginForm onLogin={handleLogin} />
             } />
 
             <Route path="/register" element={
-              <div className="flex flex-col items-center justify-center h-[80vh]">
-                 <div className="bg-white/95 backdrop-blur-sm p-8 rounded shadow-lg w-96 text-center">
-                    <h2 className="text-2xl font-bold mb-4">Register</h2>
-                    <p className="text-gray-500 mb-4">Simulated Registration</p>
-                    <button onClick={() => handleLoginCheck('New User', 'password', false)} className="bg-advice-orange text-white px-6 py-2 rounded font-bold">Create Account</button>
-                 </div>
-              </div>
+               <Navigate to="/login" /> 
+               // Register is now part of Login component toggle
             } />
 
             {/* Admin Routes */}
@@ -299,7 +358,6 @@ const App: React.FC = () => {
           </Routes>
         </main>
         
-        {/* Simple Admin Sidebar (Floating for demo) if admin */}
         {user?.role === 'admin' && (
            <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
               <button 
